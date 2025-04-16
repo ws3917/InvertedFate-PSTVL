@@ -175,6 +175,9 @@ def main():
         if os.path.basename(root).startswith("Ch"):
             chapter = os.path.basename(root)
             output = {}
+            # 如果输出文件存在，则跳过
+            if os.path.exists(os.path.join(TEXT_OUTPUT_DIR, f"{chapter}/OCR1.json")):
+                continue
             for file in sorted(files):
                 if file.lower().endswith((".png", ".gif")):
                     path = os.path.join(root, file)
