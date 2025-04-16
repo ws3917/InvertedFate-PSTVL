@@ -2,7 +2,7 @@ import os
 from PIL import Image
 import imageio
 
-COMIC_DIR = "comic/Ch11A"
+COMIC_DIR = "comic/Ch39"
 
 
 def get_last_frame_gif(path):
@@ -54,6 +54,16 @@ def has_textbox(img, base_y_offset):
     )
 
 
+def has_battle_textbox(img, base_y_offset):
+    return (
+        check_diag(img, 32, base_y_offset, 36, base_y_offset + 4, "#ffffff")
+        and check_diag(
+            img, 602, base_y_offset + 135, 606, base_y_offset + 139, "#ffffff"
+        )
+        and check_diag(img, 37, base_y_offset + 5, 41, base_y_offset + 9, "#000000")
+    )
+
+
 def check_avatar_absent(img, y1, y2):
     def line_black(y):
         for x in range(60, 145):
@@ -70,14 +80,20 @@ def process_image(path):
 
     if is_battle_type(img):
         result["type"] = "战斗类"
-        has_txt = has_textbox(img, 250)
-        result["战斗主文本框"] = has_txt
+        result["战斗文本框"] = "有" if has_battle_textbox(img, 250) else "无"
     else:
         result["type"] = "非战斗类"
-        result["下方文本框"] = has_textbox(img, 320)
-        result["上方文本框"] = has_textbox(img, 10)
-        result["下方无头像"] = check_avatar_absent(img, 390, 430)
-        result["上方无头像"] = check_avatar_absent(img, 60, 100)
+        top = has_textbox(img, 10)
+        bottom = has_textbox(img, 320)
+
+        if not top and not bottom:
+            result["文本框位置"] = "无文本框"
+        elif top:
+            result["文本框位置"] = "上方"
+            result["头像"] = "有" if not check_avatar_absent(img, 60, 100) else "无"
+        elif bottom:
+            result["文本框位置"] = "下方"
+            result["头像"] = "有" if not check_avatar_absent(img, 370, 410) else "无"
 
     return result
 
