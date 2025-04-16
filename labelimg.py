@@ -93,20 +93,20 @@ def crop_textbox(img, is_battle, has_avatar, base_y_offset):
     return img.crop((x0, y0, x1, y1))
 
 
-def ocr_text(img_region):
-    np_img = np.array(img_region)
-    result = reader.readtext(np_img, detail=0)
-    return " ".join(result).strip()
-
-
-# ocr = PaddleOCR(use_angle_cls=True, lang="en")
-
-
 # def ocr_text(img_region):
-#     result = ocr.ocr(np.array(img_region))
-#     if result and result[0]:
-#         return " ".join([line[1][0] for line in result[0]]).strip()
-#     return ""
+#     np_img = np.array(img_region)
+#     result = reader.readtext(np_img, detail=0)
+#     return " ".join(result).strip()
+
+
+ocr = PaddleOCR(use_angle_cls=True, lang="en")
+
+
+def ocr_text(img_region):
+    result = ocr.ocr(np.array(img_region))
+    if result and result[0]:
+        return " ".join([line[1][0] for line in result[0]]).strip()
+    return ""
 
 
 # def ocr_text(img_region):
@@ -176,7 +176,7 @@ def main():
             chapter = os.path.basename(root)
             output = {}
             # 如果输出文件存在，则跳过
-            if os.path.exists(os.path.join(TEXT_OUTPUT_DIR, f"{chapter}/OCR1.json")):
+            if os.path.exists(os.path.join(TEXT_OUTPUT_DIR, f"{chapter}/OCR2.json")):
                 continue
             for file in sorted(files):
                 if file.lower().endswith((".png", ".gif")):
@@ -196,13 +196,13 @@ def main():
                 if not os.path.exists(os.path.join(TEXT_OUTPUT_DIR, f"{chapter}")):
                     os.makedirs(os.path.join(TEXT_OUTPUT_DIR, f"{chapter}"))
                 with open(
-                    os.path.join(TEXT_OUTPUT_DIR, f"{chapter}/OCR1.json"),
+                    os.path.join(TEXT_OUTPUT_DIR, f"{chapter}/OCR2.json"),
                     "w",
                     encoding="utf-8",
                 ) as f:
                     json.dump(sorted_output, f, ensure_ascii=False, indent=2)
 
-            print(f"✅ 完成 {os.path.join(TEXT_OUTPUT_DIR, f"{chapter}/OCR1.json")}")
+            print(f"✅ 完成 {os.path.join(TEXT_OUTPUT_DIR, f"{chapter}/OCR2.json")}")
 
 
 if __name__ == "__main__":
