@@ -199,6 +199,8 @@ def main():
                 ) as f:
                     json.dump(sorted_output, f, ensure_ascii=False, indent=2)
 
+            print(f"✅ 完成 {os.path.join(TEXT_OUTPUT_DIR, f"{chapter}/OCR1.json")}")
+
 
 if __name__ == "__main__":
     main()
