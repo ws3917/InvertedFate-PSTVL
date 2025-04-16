@@ -1,9 +1,13 @@
 import os
+import json
 from PIL import Image
 import easyocr
 import numpy as np
 
-COMIC_DIR = "comic/Ch39"
+COMIC_ROOT = "comic"
+TEXT_OUTPUT_DIR = "text"
+
+reader = easyocr.Reader(["en"], gpu=True)
 
 
 def get_last_frame_gif(path):
@@ -16,9 +20,11 @@ def get_last_frame_gif(path):
 
 
 def load_image(path):
-    if path.lower().endswith(".gif"):
-        return get_last_frame_gif(path)
-    return Image.open(path).convert("RGB")
+    return (
+        get_last_frame_gif(path)
+        if path.lower().endswith(".gif")
+        else Image.open(path).convert("RGB")
+    )
 
 
 def get_color(img, x, y):
@@ -76,15 +82,11 @@ def check_avatar_absent(img, y1, y2):
 
 
 def crop_textbox(img, is_battle, has_avatar, base_y_offset):
-    if is_battle:
-        x0 = 160 if has_avatar else 39
-        return img.crop((x0, base_y_offset + 7, 600, base_y_offset + 132))
-    else:
-        x0 = 160 if has_avatar else 40
-        return img.crop((x0, base_y_offset + 8, 602, base_y_offset + 143))
-
-
-reader = easyocr.Reader(["en"], gpu=True)  # 使用英文模型 + GPU
+    x0 = 160 if has_avatar else (39 if is_battle else 40)
+    y0 = base_y_offset + (7 if is_battle else 8)
+    y1 = base_y_offset + (132 if is_battle else 143)
+    x1 = 600 if is_battle else 602
+    return img.crop((x0, y0, x1, y1))
 
 
 def ocr_text(img_region):
@@ -93,59 +95,81 @@ def ocr_text(img_region):
     return " ".join(result).strip()
 
 
+def describe_result(file, pos, avatar, battle_type):
+    return f"{file}-{pos}{avatar}{battle_type}"
+
+
 def process_image(path):
     img = load_image(path)
-    result = {"file": os.path.basename(path)}
+    file = os.path.basename(path)
+    entry = None
 
     if is_battle_type(img):
-        result["type"] = "战斗类"
         has_txt = has_battle_textbox(img, 250)
-        result["战斗文本框"] = "有" if has_txt else "无"
-
         if has_txt:
             textbox_img = crop_textbox(
                 img, is_battle=True, has_avatar=False, base_y_offset=250
             )
-            result["文本内容"] = ocr_text(textbox_img)
-
+            text = ocr_text(textbox_img)
+            if text:
+                key = describe_result(file, "战斗文本框", "无头像", "战斗")
+                entry = {key: text}
     else:
-        result["type"] = "非战斗类"
         top = has_textbox(img, 10)
         bottom = has_textbox(img, 320)
-
-        if not top and not bottom:
-            result["文本框位置"] = "无文本框"
-        else:
-            if top:
-                result["文本框位置"] = "上方"
-                avatar_absent = check_avatar_absent(img, 60, 100)
-                result["头像"] = "无" if avatar_absent else "有"
-                textbox_img = crop_textbox(
-                    img, is_battle=False, has_avatar=not avatar_absent, base_y_offset=10
+        if top:
+            avatar_absent = check_avatar_absent(img, 60, 100)
+            textbox_img = crop_textbox(
+                img, is_battle=False, has_avatar=not avatar_absent, base_y_offset=10
+            )
+            text = ocr_text(textbox_img)
+            if text:
+                key = describe_result(
+                    file,
+                    "顶部文本框",
+                    "无头像" if avatar_absent else "有头像",
+                    "非战斗",
                 )
-                result["文本内容"] = ocr_text(textbox_img)
-
-            elif bottom:
-                result["文本框位置"] = "下方"
-                avatar_absent = check_avatar_absent(img, 370, 410)
-                result["头像"] = "无" if avatar_absent else "有"
-                textbox_img = crop_textbox(
-                    img,
-                    is_battle=False,
-                    has_avatar=not avatar_absent,
-                    base_y_offset=320,
+                entry = {key: text}
+        elif bottom:
+            avatar_absent = check_avatar_absent(img, 370, 410)
+            textbox_img = crop_textbox(
+                img, is_battle=False, has_avatar=not avatar_absent, base_y_offset=320
+            )
+            text = ocr_text(textbox_img)
+            if text:
+                key = describe_result(
+                    file,
+                    "底部文本框",
+                    "无头像" if avatar_absent else "有头像",
+                    "非战斗",
                 )
-                result["文本内容"] = ocr_text(textbox_img)
+                entry = {key: text}
 
-    return result
+    return entry
 
 
 def main():
-    for file in os.listdir(COMIC_DIR):
-        if file.lower().endswith((".png", ".gif")):
-            path = os.path.join(COMIC_DIR, file)
-            result = process_image(path)
-            print(result)
+    os.makedirs(TEXT_OUTPUT_DIR, exist_ok=True)
+
+    for root, dirs, files in os.walk(COMIC_ROOT):
+        if os.path.basename(root).startswith("Ch"):
+            chapter = os.path.basename(root)
+            output = {}
+            for file in sorted(files):
+                if file.lower().endswith((".png", ".gif")):
+                    path = os.path.join(root, file)
+                    entry = process_image(path)
+                    if entry:
+                        output.update(entry)
+
+            if output:
+                with open(
+                    os.path.join(TEXT_OUTPUT_DIR, f"{chapter}.json"),
+                    "w",
+                    encoding="utf-8",
+                ) as f:
+                    json.dump(output, f, ensure_ascii=False, indent=2)
 
 
 if __name__ == "__main__":
