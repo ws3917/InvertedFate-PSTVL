@@ -1,11 +1,15 @@
 import os
-import json
+import json, re
 from PIL import Image
 import easyocr
 import numpy as np
+import pytesseract
+
+from collections import OrderedDict
+from paddleocr import PaddleOCR
 
 COMIC_ROOT = "comic"
-TEXT_OUTPUT_DIR = "text"
+TEXT_OUTPUT_DIR = "text2"
 
 reader = easyocr.Reader(["en"], gpu=True)
 
@@ -89,10 +93,25 @@ def crop_textbox(img, is_battle, has_avatar, base_y_offset):
     return img.crop((x0, y0, x1, y1))
 
 
+# def ocr_text(img_region):
+#     np_img = np.array(img_region)
+#     result = reader.readtext(np_img, detail=0)
+#     return " ".join(result).strip()
+
+
+ocr = PaddleOCR(use_angle_cls=True, lang="en")
+
+
 def ocr_text(img_region):
-    np_img = np.array(img_region)
-    result = reader.readtext(np_img, detail=0)
-    return " ".join(result).strip()
+    result = ocr.ocr(np.array(img_region))
+    if result and result[0]:
+        return " ".join([line[1][0] for line in result[0]]).strip()
+    return ""
+
+
+# def ocr_text(img_region):
+#     text = pytesseract.image_to_string(img_region, config="--psm 6")
+#     return text.strip().replace("=", "*")
 
 
 def describe_result(file, pos, avatar, battle_type):
@@ -163,13 +182,22 @@ def main():
                     if entry:
                         output.update(entry)
 
+            def extract_number(s):
+                match = re.search(r"(\d+)", s)
+                return int(match.group(1)) if match else float("inf")
+
             if output:
+                sorted_output = OrderedDict(
+                    sorted(output.items(), key=lambda x: extract_number(x[0]))
+                )
+                if not os.path.exists(os.path.join(TEXT_OUTPUT_DIR, f"{chapter}")):
+                    os.makedirs(os.path.join(TEXT_OUTPUT_DIR, f"{chapter}"))
                 with open(
-                    os.path.join(TEXT_OUTPUT_DIR, f"{chapter}.json"),
+                    os.path.join(TEXT_OUTPUT_DIR, f"{chapter}/OCR1.json"),
                     "w",
                     encoding="utf-8",
                 ) as f:
-                    json.dump(output, f, ensure_ascii=False, indent=2)
+                    json.dump(sorted_output, f, ensure_ascii=False, indent=2)
 
 
 if __name__ == "__main__":
