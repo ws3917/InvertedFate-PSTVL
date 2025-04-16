@@ -93,20 +93,20 @@ def crop_textbox(img, is_battle, has_avatar, base_y_offset):
     return img.crop((x0, y0, x1, y1))
 
 
-# def ocr_text(img_region):
-#     np_img = np.array(img_region)
-#     result = reader.readtext(np_img, detail=0)
-#     return " ".join(result).strip()
-
-
-ocr = PaddleOCR(use_angle_cls=True, lang="en")
-
-
 def ocr_text(img_region):
-    result = ocr.ocr(np.array(img_region))
-    if result and result[0]:
-        return " ".join([line[1][0] for line in result[0]]).strip()
-    return ""
+    np_img = np.array(img_region)
+    result = reader.readtext(np_img, detail=0)
+    return " ".join(result).strip()
+
+
+# ocr = PaddleOCR(use_angle_cls=True, lang="en")
+
+
+# def ocr_text(img_region):
+#     result = ocr.ocr(np.array(img_region))
+#     if result and result[0]:
+#         return " ".join([line[1][0] for line in result[0]]).strip()
+#     return ""
 
 
 # def ocr_text(img_region):
