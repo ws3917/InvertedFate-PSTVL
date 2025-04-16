@@ -99,19 +99,19 @@ def crop_textbox(img, is_battle, has_avatar, base_y_offset):
 #     return " ".join(result).strip()
 
 
-ocr = PaddleOCR(use_angle_cls=True, lang="en")
-
-
-def ocr_text(img_region):
-    result = ocr.ocr(np.array(img_region))
-    if result and result[0]:
-        return " ".join([line[1][0] for line in result[0]]).strip()
-    return ""
+# ocr = PaddleOCR(use_angle_cls=True, lang="en")
 
 
 # def ocr_text(img_region):
-#     text = pytesseract.image_to_string(img_region, config="--psm 6")
-#     return text.strip().replace("=", "*")
+#     result = ocr.ocr(np.array(img_region))
+#     if result and result[0]:
+#         return " ".join([line[1][0] for line in result[0]]).strip()
+#     return ""
+
+
+def ocr_text(img_region):
+    text = pytesseract.image_to_string(img_region, config="--psm 6")
+    return text.strip().replace("=", "*")
 
 
 def describe_result(file, pos, avatar, battle_type):
