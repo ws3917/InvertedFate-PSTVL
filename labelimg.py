@@ -1,6 +1,7 @@
 import os
 from PIL import Image
-import imageio
+import easyocr
+import numpy as np
 
 COMIC_DIR = "comic/Ch39"
 
@@ -74,13 +75,39 @@ def check_avatar_absent(img, y1, y2):
     return line_black(y1) and line_black(y2)
 
 
+def crop_textbox(img, is_battle, has_avatar, base_y_offset):
+    if is_battle:
+        x0 = 160 if has_avatar else 39
+        return img.crop((x0, base_y_offset + 7, 600, base_y_offset + 132))
+    else:
+        x0 = 160 if has_avatar else 40
+        return img.crop((x0, base_y_offset + 8, 602, base_y_offset + 143))
+
+
+reader = easyocr.Reader(["en"], gpu=True)  # 使用英文模型 + GPU
+
+
+def ocr_text(img_region):
+    np_img = np.array(img_region)
+    result = reader.readtext(np_img, detail=0)
+    return " ".join(result).strip()
+
+
 def process_image(path):
     img = load_image(path)
     result = {"file": os.path.basename(path)}
 
     if is_battle_type(img):
         result["type"] = "战斗类"
-        result["战斗文本框"] = "有" if has_battle_textbox(img, 250) else "无"
+        has_txt = has_battle_textbox(img, 250)
+        result["战斗文本框"] = "有" if has_txt else "无"
+
+        if has_txt:
+            textbox_img = crop_textbox(
+                img, is_battle=True, has_avatar=False, base_y_offset=250
+            )
+            result["文本内容"] = ocr_text(textbox_img)
+
     else:
         result["type"] = "非战斗类"
         top = has_textbox(img, 10)
@@ -88,12 +115,27 @@ def process_image(path):
 
         if not top and not bottom:
             result["文本框位置"] = "无文本框"
-        elif top:
-            result["文本框位置"] = "上方"
-            result["头像"] = "有" if not check_avatar_absent(img, 60, 100) else "无"
-        elif bottom:
-            result["文本框位置"] = "下方"
-            result["头像"] = "有" if not check_avatar_absent(img, 370, 410) else "无"
+        else:
+            if top:
+                result["文本框位置"] = "上方"
+                avatar_absent = check_avatar_absent(img, 60, 100)
+                result["头像"] = "无" if avatar_absent else "有"
+                textbox_img = crop_textbox(
+                    img, is_battle=False, has_avatar=not avatar_absent, base_y_offset=10
+                )
+                result["文本内容"] = ocr_text(textbox_img)
+
+            elif bottom:
+                result["文本框位置"] = "下方"
+                avatar_absent = check_avatar_absent(img, 370, 410)
+                result["头像"] = "无" if avatar_absent else "有"
+                textbox_img = crop_textbox(
+                    img,
+                    is_battle=False,
+                    has_avatar=not avatar_absent,
+                    base_y_offset=320,
+                )
+                result["文本内容"] = ocr_text(textbox_img)
 
     return result
 
